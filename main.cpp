@@ -9,7 +9,7 @@
 #include "common/filereads.cpp"
 #include "common/stringutils.cpp"
 #include "common/systemutils.cpp"
-
+#include "common/vector_operations.cpp"
 
 
 
@@ -45,7 +45,6 @@ bool validErrorCodeName(const std::string &errorCodeName) {
 }
 
 std::string parseErrorCodeName(const std::string &error) {
-    // std::cout << error << std::endl;
     std::vector<std::string> paraPairs;
     for (int i = 0; i < error.length(); i++) {
         if (error[i] == '(') {
@@ -57,13 +56,11 @@ std::string parseErrorCodeName(const std::string &error) {
             paraPairs.push_back(paraPair);
         }
     }
-
     for (auto &paraPair : paraPairs) {
         if (validErrorCodeName(paraPair)) {
             return paraPair;
         }
     }
-
     return "FLAG_NOT_FOUND";
 }
 
@@ -73,9 +70,7 @@ std::set<PylError> parse(const std::vector<std::string> lines) {
         const std::string errorCodeName = parseErrorCodeName(line);
         if (errorCodeName != "FLAG_NOT_FOUND") {
             PylError error(errorCodeName);
-            if (errors.find(error) == errors.end()) {
-                errors.insert(error);
-            }
+            errors.insert(error);
         }
     }
     return errors;
@@ -96,12 +91,10 @@ int findEndOfMessagesControlSection(const std::vector<std::string> &lines) {
 
 std::vector<std::string> getMessagesControlSection(const std::vector<std::string> &lines) {
     std::vector<std::string> messagesControlSection;
-    // open file
     int index = findIndexOfMessagesControlSection(lines);
     if (index == -1) {
         return std::vector<std::string>();
     }
-    
     messagesControlSection.push_back(lines[index]);
     messagesControlSection.push_back("\n");
     for (int i = index + 1; i < lines.size(); i++) {
@@ -153,6 +146,7 @@ void addErrorsToMsgControlSection(std::vector<std::string> &msgControlSection, c
     for (auto &error : errors) {
         msgControlSection.push_back("    " + error.errorCodeName + ",");
     }
+    msgControlSection.push_back("\n");
 }
 
 void writePylintrcFile(const std::vector<std::string> &lines) {
@@ -166,17 +160,19 @@ void writePylintrcFile(const std::vector<std::string> &lines) {
     }
 }
 
+
+
 void createNewPylintRcFile(const std::vector<std::string> &fileContents, std::set<PylError> &errors) {
     std::vector<std::string> beforeMessagesControlSection = beforeMsgControl(fileContents);
     std::vector<std::string> messagesControlSection = getMessagesControlSection(fileContents);
     std::vector<std::string> afterMessagesControlSection = afterMsgControl(fileContents);
 
-    // add errors to messages control section
     addErrorsToMsgControlSection(messagesControlSection, errors);
-    // write messages control section back to file
+
     std::vector<std::string> newFileContents = beforeMessagesControlSection;
-    newFileContents.insert(newFileContents.end(), messagesControlSection.begin(), messagesControlSection.end());
-    newFileContents.insert(newFileContents.end(), afterMessagesControlSection.begin(), afterMessagesControlSection.end());
+    appendVector(newFileContents, messagesControlSection);
+    appendVector(newFileContents, afterMessagesControlSection);
+
     writePylintrcFile(newFileContents);
 }
 
@@ -185,13 +181,11 @@ int main(int argc, char* argv[]) {
         std::cout << "Usage: " << argv[0] << " <command>" << std::endl;
         return 1;
     }
-    std::string command = convertToSpaceSeperatedString(argv, 1);
-    std::cout << command << std::endl;
-    std::set<PylError> errors = parse(splitStringIntoLines(exec(command)));
-    std::cout << "Found " << errors.size() << " errors" << std::endl;
-    std::vector<std::string> fileContents = getPylintrcLines();
-    
-    createNewPylintRcFile(fileContents, errors);
 
+    std::string command = convertToSpaceSeperatedString(argv, 1);
+    std::set<PylError> errors = parse(splitStringIntoLines(exec(command)));
+    std::vector<std::string> fileContents = getPylintrcLines();
+
+    createNewPylintRcFile(fileContents, errors);
     return 0;
 }
