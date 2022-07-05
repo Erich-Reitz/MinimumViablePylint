@@ -63,8 +63,9 @@ def parse(pylint_output: str) -> List[PylintError]:
     """
     errors: Set(PylintError) = set()
     for line in pylint_output.split("\n"):
-        if parse_error_code(line):
-            errors.add(parse_error_code(line))
+        err = parse_error_code(line)
+        if err:
+            errors.add(err)
 
     return errors
 
